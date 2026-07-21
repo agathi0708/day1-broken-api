@@ -8,18 +8,27 @@ router = APIRouter()
 
 
 @router.get("/")
-def list_items(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+def list_items(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
     """Returns every ticket along with its owning team's name."""
-    items = db.query(models.Item).all()
-    result = []
-    for item in items:
-        # look up the owner name for display
-        owner = db.query(models.Owner).filter(models.Owner.id == item.owner_id).first()
-        result.append(
-            {
-                "id": item.id,
-                "name": item.name,
-                "owner": owner.name if owner else None,
-            }
+
+    results = (
+        db.query(
+            models.Item.id,
+            models.Item.name,
+            models.Owner.name.label("owner")
         )
-    return result
+        .join(models.Owner, models.Item.owner_id == models.Owner.id)
+        .all()
+    )
+
+    return [
+        {
+            "id": row.id,
+            "name": row.name,
+            "owner": row.owner,
+        }
+        for row in results
+    ]
