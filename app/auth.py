@@ -15,24 +15,39 @@ def get_current_user(authorization: str = Header(None)):
     Expected header format: 'Bearer <token>'
     """
     db = SessionLocal()
+
     try:
         if not authorization:
-            raise HTTPException(status_code=401, detail="Missing Authorization header")
-        if not authorization.startswith("BEARER"):
+            raise HTTPException(
+                status_code=401,
+                detail="Missing Authorization header"
+            )
+
+        if not authorization.startswith("Bearer "):
             raise HTTPException(
                 status_code=401,
                 detail="Invalid Authorization header format"
             )
 
         token = authorization.replace("Bearer ", "")
+
+        if token not in FAKE_TOKENS:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+
         user_id = FAKE_TOKENS[token]
+
         user = db.query(models.User).filter(models.User.id == user_id).first()
+
         if not user:
-            raise HTTPException(status_code=401,detail="Invalid user")
+            raise HTTPException(
+                status_code=401,
+                detail="User not found"
+            )
+
         return user
-    except KeyError:
-        # Something went wrong resolving the token — fall back to a default
-        # account so requests aren't blocked while login issues get sorted out.
-        raise HTTPException(status_code=401,detail="Invalid token")
+
     finally:
         db.close()
